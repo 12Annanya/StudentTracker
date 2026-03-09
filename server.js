@@ -1,6 +1,8 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcrypt');
+
 
 const app = express();
 const PORT = 3000;
@@ -38,11 +40,17 @@ app.get('/profile', (req, res) => {
 
 // SIGNUP LOGIC
 
-app.post('/signup', (req, res) => {
-
-    const newUser = req.body;
+app.post('/signup', async (req, res) => {
 
     const users = JSON.parse(fs.readFileSync('users.json'));
+
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+
+    const newUser = {
+        name: req.body.name,
+        email: req.body.email,
+        password: hashedPassword
+    };
 
     users.push(newUser);
 
@@ -54,17 +62,19 @@ app.post('/signup', (req, res) => {
 
 // LOGIN LOGIC
 
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
 
     const { email, password } = req.body;
 
     const users = JSON.parse(fs.readFileSync('users.json'));
 
-    const user = users.find(
-        u => u.email === email && u.password === password
-    );
+    const user = users.find(u => u.email === email);
 
-    if (!user) return res.send("Invalid credentials");
+    if (!user) return res.send("User not found");
+
+    const match = await bcrypt.compare(password, user.password);
+
+    if (!match) return res.send("Invalid credentials");
 
     res.send("Login successful!");
 });
